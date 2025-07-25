@@ -1,192 +1,171 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
+local hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
 local itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
-local PlayerData = require(game:GetService("ReplicatedStorage").Modules.ProfileData)
+getgenv().newValue = ""
 
--- Create the GUI
-local Window = Rayfield:CreateWindow({
-   Name = "Item Spawner",
-   LoadingTitle = "Loading Spawner...",
-   Theme = "Dark"
-})
-
-local Tab = Window:CreateTab("Main")
-
--- Item spawn function
-local function spawnItem(itemName)
-    -- Find the exact item name from database
-    local rawName
-    for name, _ in pairs(itemdatabase) do
-        if name:lower() == itemName:lower() then
-            rawName = name
-            break
-        end
+function getrandombox()
+    local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
+    local keys = {}
+    for k, _ in pairs(boxes) do
+        table.insert(keys, k)
     end
-    
-    if not rawName then
-        Rayfield:Notify({
-            Title = "Error",
-            Content = "Item not found in database",
-            Duration = 3
-        })
-        return false
-    end
-    
-    -- Add to inventory
-    if not PlayerData.Weapons.Owned[rawName] then
-        PlayerData.Weapons.Owned[rawName] = 1
-    else
-        PlayerData.Weapons.Owned[rawName] += 1
-    end
-    
-    -- Force inventory update
-    game:GetService("RunService"):BindToRenderStep("InventoryUpdate", 0, function()
-        PlayerData.Weapons = PlayerData.Weapons
-    end)
-    
-    -- Create visual item in inventory
-    local gui = game.Players.LocalPlayer.PlayerGui.MainGUI
-    local container
-    
-    if gui:FindFirstChild("Game") and gui.Game:FindFirstChild("Inventory") then
-        container = gui.Game.Inventory.Main.Weapons.Items.Container.Classic.Container
-    elseif gui:FindFirstChild("Lobby") and gui.Lobby.Screens:FindFirstChild("Inventory") then
-        container = gui.Lobby.Screens.Inventory.Main.Weapons.Items.Container.Classic.Container
-    end
-    
-    if container then
-        local itemFrame = Instance.new("Frame")
-        itemFrame.Name = "NewItem"
-        itemFrame.Parent = container
-        itemFrame.Size = UDim2.new(0.2, 0, 0.25, 0)
-        itemFrame.BackgroundTransparency = 1
-
-        -- Item container
-        local itemContainer = Instance.new("Frame", itemFrame)
-        itemContainer.Name = "Container"
-        itemContainer.Position = UDim2.new(0, 3, 0, 3)
-        itemContainer.Size = UDim2.new(1, -6, 0.825, -6)
-        itemContainer.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
-        itemContainer.BorderSizePixel = 2
-
-        -- Item icon
-        local icon = Instance.new("ImageLabel", itemContainer)
-        icon.Name = "Icon"
-        icon.Size = UDim2.new(1, 0, 1, 0)
-        icon.Position = UDim2.new(0.5, 0, 0.5, 0)
-        icon.AnchorPoint = Vector2.new(0.5, 0.5)
-        icon.Image = itemdatabase[rawName].Image
-        icon.BackgroundTransparency = 1
-
-        -- Item amount
-        local amount = Instance.new("TextLabel", itemContainer)
-        amount.Name = "Amount"
-        amount.Size = UDim2.new(0.5, 0, 0.225, 0)
-        amount.Position = UDim2.new(1, -4, 0, 3)
-        amount.AnchorPoint = Vector2.new(1, 0)
-        amount.BackgroundTransparency = 1
-        amount.TextColor3 = Color3.new(1, 1, 1)
-        amount.TextScaled = true
-        amount.Text = "x"..PlayerData.Weapons.Owned[rawName]
-
-        -- Item name frame
-        local nameFrame = Instance.new("Frame", itemFrame)
-        nameFrame.Name = "ItemName"
-        nameFrame.Position = UDim2.new(0, 3, 0.8, 3)
-        nameFrame.Size = UDim2.new(1, -6, 0.2, -4)
-        nameFrame.BorderSizePixel = 2
-
-        -- Set rarity color
-        if itemdatabase[rawName].Rarity == "Godly" then
-            nameFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 179)
-        elseif itemdatabase[rawName].Rarity == "Ancient" then
-            nameFrame.BackgroundColor3 = Color3.fromRGB(100, 10, 255)
-        end
-
-        -- Background for name
-        local bg = Instance.new("ImageLabel", nameFrame)
-        bg.Size = UDim2.new(1, 0, 1, 0)
-        bg.Image = "rbxassetid://2957790421"
-        bg.BackgroundTransparency = 1
-
-        -- Item name label
-        local label = Instance.new("TextLabel", nameFrame)
-        label.Name = "Label"
-        label.Position = UDim2.new(0.5, 0, 0.5, 0)
-        label.AnchorPoint = Vector2.new(0.5, 0.5)
-        label.Size = UDim2.new(0.9, 0, 0.9, 0)
-        label.BackgroundTransparency = 1
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.TextStrokeTransparency = 0.7
-        label.Font = Enum.Font.SourceSansBold
-        label.Text = rawName
-        label.TextScaled = true
-    end
-    
-    -- Play crate opening animation
-    boxmodule.OpenBox("BasicBox", rawName)
-    
-    return true
+    return keys[math.random(1, #keys)]
 end
 
--- Create input for item name
+function opencrate(ITEM_NAME)
+    boxmodule.OpenBox(getrandombox(), ITEM_NAME)
+    hi.NewItem(ITEM_NAME, nil, nil, 'Weapons', 1)
+end
+
+function getrawnamebyrealname(realname)
+    for i, _ in pairs(itemdatabase) do
+        if realname:lower() == i:lower() then
+            return i
+        end
+    end
+end
+
+function getImage(iname)
+    for name, info in pairs(itemdatabase) do
+        if iname:lower() == name:lower() then
+            return info.Image
+        end
+    end
+end
+
+function fakeItem()
+    local jj = Instance.new("Frame")
+    jj.Name = "NewItem"
+    local gui = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI
+    if gui:FindFirstChild("Game") and gui.Game:FindFirstChild("Inventory") then
+        jj.Parent = gui.Game.Inventory.Main.Weapons.Items.Container.Classic.Container
+    elseif gui:FindFirstChild("Lobby") and gui.Lobby.Screens:FindFirstChild("Inventory") then
+        jj.Parent = gui.Lobby.Screens.Inventory.Main.Weapons.Items.Container.Classic.Container
+    end
+    jj.Size = UDim2.new(0.2, 0, 0.25, 0)
+    jj.BackgroundTransparency = 1
+
+    local kk = Instance.new("Frame", jj)
+    kk.Name = "Container"
+    kk.Position = UDim2.new(0, 3, 0, 3)
+    kk.Size = UDim2.new(1, -6, 0.825, -6)
+    kk.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
+    kk.BorderSizePixel = 2
+
+    local ll = Instance.new("ImageLabel", kk)
+    ll.Name = "Icon"
+    ll.Size = UDim2.new(1, 0, 1, 0)
+    ll.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ll.AnchorPoint = Vector2.new(0.5, 0.5)
+    ll.Image = getImage(getgenv().newValue)
+    ll.BackgroundTransparency = 1
+
+    local hh = Instance.new("TextLabel", kk)
+    hh.Name = "Amount"
+    hh.Size = UDim2.new(0.5, 0, 0.225, 0)
+    hh.Position = UDim2.new(1, -4, 0, 3)
+    hh.AnchorPoint = Vector2.new(1, 0)
+    hh.BackgroundTransparency = 1
+    hh.TextColor3 = Color3.new(1, 1, 1)
+    hh.TextScaled = true
+    hh.Text = ""
+
+    local gg = Instance.new("Frame", jj)
+    gg.Name = "ItemName"
+    gg.Position = UDim2.new(0, 3, 0.8, 3)
+    gg.Size = UDim2.new(1, -6, 0.2, -4)
+    gg.BorderSizePixel = 2
+
+    for name, info in pairs(itemdatabase) do
+        if getgenv().newValue:lower() == name:lower() then
+            if info.Rarity == "Godly" then
+                gg.BackgroundColor3 = Color3.fromRGB(255, 0, 179)
+            elseif info.Rarity == "Ancient" then
+                gg.BackgroundColor3 = Color3.fromRGB(100, 10, 255)
+            end
+        end
+    end
+
+    local bg = Instance.new("ImageLabel", gg)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.Image = "rbxassetid://2957790421"
+    bg.BackgroundTransparency = 1
+
+    local lb = Instance.new("TextLabel", gg)
+    lb.Name = "Label"
+    lb.Position = UDim2.new(0.5, 0, 0.5, 0)
+    lb.AnchorPoint = Vector2.new(0.5, 0.5)
+    lb.Size = UDim2.new(0.9, 0, 0.9, 0)
+    lb.BackgroundTransparency = 1
+    lb.TextColor3 = Color3.new(1, 1, 1)
+    lb.TextStrokeTransparency = 0.7
+    lb.Font = Enum.Font.SourceSansBold
+    lb.Text = getgenv().newValue
+    lb.TextScaled = true
+end
+
+local Window = Rayfield:CreateWindow({
+   Name = "Item Spawner",
+   Icon = 0,
+   LoadingTitle = "Item Spawner",
+   LoadingSubtitle = "by Heavenbatumbading",
+   Theme = "Ocean",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false
+})
+
+local Tab = Window:CreateTab("Main", 4483362458)
+Tab:CreateSection("Item Spawner")
+
 Tab:CreateInput({
    Name = "Item Name",
+   CurrentValue = "",
    PlaceholderText = "Enter item name",
+   RemoveTextAfterFocusLost = false,
    Callback = function(Value)
-       getgenv().currentItem = Value
+       getgenv().newValue = getrawnamebyrealname(Value)
    end,
 })
 
--- Create spawn button
 Tab:CreateButton({
    Name = "Spawn Item",
    Callback = function()
-       if getgenv().currentItem and getgenv().currentItem ~= "" then
-           local success = spawnItem(getgenv().currentItem)
-           if success then
-               Rayfield:Notify({
-                   Title = "Success",
-                   Content = "Spawned " .. getgenv().currentItem,
-                   Duration = 3
-               })
-           end
-       else
-           Rayfield:Notify({
-               Title = "Error",
-               Content = "Please enter an item name",
-               Duration = 3
-           })
-       end
+       opencrate(getgenv().newValue)
+       fakeItem()
    end,
 })
 
--- Popular items dropdown
-local popularItems = {
-    "Corrupt",
-    "Gingerscope",
-    "Traveler's Axe",
-    "Harvester",
-    "Celestial",
-    "Vampire's Axe",
-    "Swirly Axe",
-    "Traveler's Gun",
-    "Evergun",
-    "Turkey",
-    "Evergreen",
-    "Vampire's Gun",
-    "Bauble",
-    "Constellation",
-    "Bat",
-    "Luger",
-    "Darkbringer",
-    "Lightbringer"
-}
+-- Drag and drop functionality for the GUI
+local UserInputService = game:GetService("UserInputService")
+local dragToggle = nil
+local dragSpeed = 0.25
+local dragStart = nil
+local startPos = nil
 
-Tab:CreateDropdown({
-   Name = "Popular Items",
-   Options = popularItems,
-   Callback = function(Option)
-       getgenv().currentItem = Option
-   end,
-})
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    game:GetService("TweenService"):Create(Window, TweenInfo.new(dragSpeed), {Position = position}):Play()
+end
+
+Window.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = Window.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragToggle = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragToggle then
+            updateInput(input)
+        end
+    end
+end)
