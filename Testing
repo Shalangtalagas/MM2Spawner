@@ -1,132 +1,176 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
-local hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
-local itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
-
+boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
+hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
+itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
 getgenv().newValue = ""
 
--- Basic functions
-function getrandombox()
-    local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
-    local keys = {}
-    for k, _ in pairs(boxes) do
-        table.insert(keys, k)
-    end
-    return keys[math.random(1, #keys)]
+-- Animation function
+local function animateUnbox(frame)
+    -- Initial state (small and transparent)
+    frame.Size = UDim2.new(0.1, 0, 0.1, 0)
+    frame.BackgroundTransparency = 1
+    frame.Visible = true
+
+    -- Scale up with bounce effect
+    local scaleUp = game:GetService("TweenService"):Create(
+        frame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {Size = UDim2.new(0.25, 0, 0.35, 0)}
+    )
+    scaleUp:Play()
+
+    -- Fade in
+    game:GetService("TweenService"):Create(
+        frame,
+        TweenInfo.new(0.3),
+        {BackgroundTransparency = 0}
+    ):Play()
+
+    -- Add glow effect
+    local glow = Instance.new("ImageLabel")
+    glow.Name = "Glow"
+    glow.Image = "rbxassetid://5028857084" -- Glow image ID
+    glow.Size = UDim2.new(1.5, 0, 1.5, 0)
+    glow.Position = UDim2.new(-0.25, 0, -0.25, 0)
+    glow.BackgroundTransparency = 1
+    glow.ZIndex = -1
+    glow.Parent = frame
+
+    -- Animate glow
+    game:GetService("TweenService"):Create(
+        glow,
+        TweenInfo.new(1, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut, -1, true),
+        {Rotation = 360}
+    ):Play()
+
+    -- Add particle effects
+    local particles = Instance.new("ParticleEmitter")
+    particles.Texture = "rbxassetid://243664672" -- Sparkle texture
+    particles.LightEmission = 1
+    particles.Size = NumberSequence.new(0.5)
+    particles.Speed = NumberRange.new(5)
+    particles.Lifetime = NumberRange.new(0.5)
+    particles.Rate = 50
+    particles.Parent = frame
+
+    -- Shrink particles after 2 seconds
+    delay(2, function()
+        particles.Size = NumberSequence.new(0.2)
+        particles.Rate = 10
+    end)
 end
 
-function getrawnamebyrealname(realname)
-    for i, _ in pairs(itemdatabase) do
-        if realname:lower() == i:lower() then
-            return i
-        end
-    end
-    return realname
-end
-
-function getImage(iname)
-    for name, info in pairs(itemdatabase) do
-        if iname:lower() == name:lower() then
-            return info.Image
-        end
-    end
-end
-
-function fakeItem()
+function showFakeUnbox(itemName)
+    -- Create the fake item display
     local jj = Instance.new("Frame")
     jj.Name = "NewItem"
+    jj.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    jj.BorderSizePixel = 0
+    jj.Visible = false
+    
+    -- Determine parent based on current screen
     local gui = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI
+    local parentContainer
     if gui:FindFirstChild("Game") and gui.Game:FindFirstChild("Inventory") then
-        jj.Parent = gui.Game.Inventory.Main.Weapons.Items.Container.Classic.Container
+        parentContainer = gui.Game.Inventory.Main.Weapons.Items.Container.Classic.Container
     elseif gui:FindFirstChild("Lobby") and gui.Lobby.Screens:FindFirstChild("Inventory") then
-        jj.Parent = gui.Lobby.Screens.Inventory.Main.Weapons.Items.Container.Classic.Container
+        parentContainer = gui.Lobby.Screens.Inventory.Main.Weapons.Items.Container.Classic.Container
+    else
+        parentContainer = gui:FindFirstChildOfClass("ScreenGui") or gui
     end
     
-    -- Rest of your fakeItem implementation...
+    jj.Parent = parentContainer
+    jj.Size = UDim2.new(0.2, 0, 0.25, 0)
+    jj.AnchorPoint = Vector2.new(0.5, 0.5)
+    jj.Position = UDim2.new(0.5, 0, 0.5, 0)
+
+    -- Container for item icon
+    local kk = Instance.new("Frame", jj)
+    kk.Name = "Container"
+    kk.Position = UDim2.new(0, 3, 0, 3)
+    kk.Size = UDim2.new(1, -6, 0.825, -6)
+    kk.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
+    kk.BorderSizePixel = 2
+
+    -- Item icon
+    local ll = Instance.new("ImageLabel", kk)
+    ll.Name = "Icon"
+    ll.Size = UDim2.new(1, 0, 1, 0)
+    ll.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ll.AnchorPoint = Vector2.new(0.5, 0.5)
+    ll.Image = getImage(itemName)
+    ll.BackgroundTransparency = 1
+
+    -- Rarity name frame
+    local gg = Instance.new("Frame", jj)
+    gg.Name = "ItemName"
+    gg.Position = UDim2.new(0, 3, 0.8, 3)
+    gg.Size = UDim2.new(1, -6, 0.2, -4)
+    gg.BorderSizePixel = 2
+
+    -- Set rarity color
+    for name, info in pairs(itemdatabase) do
+        if itemName:lower() == name:lower() then
+            if info.Rarity == "Godly" then
+                gg.BackgroundColor3 = Color3.fromRGB(255, 0, 179)
+            elseif info.Rarity == "Ancient" then
+                gg.BackgroundColor3 = Color3.fromRGB(100, 10, 255)
+            elseif info.Rarity == "Legendary" then
+                gg.BackgroundColor3 = Color3.fromRGB(255, 175, 0)
+            end
+        end
+    end
+
+    -- Item name text
+    local itemText = Instance.new("TextLabel", gg)
+    itemText.Size = UDim2.new(1, 0, 1, 0)
+    itemText.BackgroundTransparency = 1
+    itemText.Text = itemName
+    itemText.TextColor3 = Color3.new(1, 1, 1)
+    itemText.Font = Enum.Font.GothamBold
+    itemText.TextScaled = true
+
+    -- Run the animation
+    animateUnbox(jj)
+
+    -- Remove after some time
+    game:GetService("Debris"):AddItem(jj, 5) -- Will remove after 5 seconds
 end
 
--- Create the window
+-- Create UI
 local Window = Rayfield:CreateWindow({
-    Name = "Item Spawner",
-    LoadingTitle = "Loading Item Spawner",
-    LoadingSubtitle = "by Heavenbatumbading",
-    ConfigurationSaving = {
-        Enabled = false
-    },
+    Name = "Fake Unbox Simulator",
+    LoadingTitle = "Fake Unbox System",
+    LoadingSubtitle = "by your name",
+    ConfigurationSaving = {Enabled = false},
+    Discord = {Enabled = false},
     KeySystem = false,
 })
 
--- Create the main tab
-local MainTab = Window:CreateTab("Main", 4483362458)
+local Tab = Window:CreateTab("Main", 4483362458)
 
--- Input section
-MainTab:CreateSection("Item Input")
-local ItemInput = MainTab:CreateInput({
+local Input = Tab:CreateInput({
     Name = "Item Name",
     PlaceholderText = "Enter item name",
     RemoveTextAfterFocusLost = false,
     Callback = function(Text)
-        getgenv().newValue = getrawnamebyrealname(Text)
+        getgenv().newValue = Text
     end,
 })
 
--- Spawn button section
-MainTab:CreateSection("Actions")
-local SpawnButton = MainTab:CreateButton({
-    Name = "Spawn Item",
+local Button = Tab:CreateButton({
+    Name = "Show Fake Unbox",
     Callback = function()
-        if getgenv().newValue == "" then
-            Window:Notify({
+        if getgenv().newValue ~= "" then
+            showFakeUnbox(getgenv().newValue)
+        else
+            Rayfield:Notify({
                 Title = "Error",
                 Content = "Please enter an item name first",
                 Duration = 3,
+                Image = nil,
+                Actions = {Ignore = {Name = "Okay"}},
             })
-            return
         end
-        
-        -- Show loading notification
-        local notif = Window:Notify({
-            Title = "Spawning Item",
-            Content = "Spawning "..getgenv().newValue.."...",
-            Duration = 6.5,
-        })
-        
-        -- Spawn the item
-        opencrate(getgenv().newValue)
-        fakeItem()
-        
-        -- Reset character
-        game.Players.LocalPlayer.Character:BreakJoints()
-        
-        -- Update notification
-        notif:ChangeTitle("Success")
-        notif:ChangeContent("Spawned "..getgenv().newValue)
-    end,
-})
-
--- Popular items dropdown (optional)
-local popularItems = {
-    "Luger",
-    "Darkbringer",
-    "Lightbringer",
-    "Chroma Darkbringer",
-    "Chroma Lightbringer",
-    "Harvester",
-    "Gingerscope",
-    "Corrupt"
-}
-
-MainTab:CreateDropdown({
-    Name = "Popular Items",
-    Options = popularItems,
-    CurrentOption = "",
-    Callback = function(Option)
-        getgenv().newValue = getrawnamebyrealname(Option)
-        ItemInput:Set(Option) -- Update the input field
-        Window:Notify({
-            Title = "Item Selected",
-            Content = "Selected: "..Option,
-            Duration = 1.5,
-        })
     end,
 })
