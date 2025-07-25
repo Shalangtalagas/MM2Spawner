@@ -1,196 +1,273 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
-hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
-itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
+
+if not success or not Rayfield then
+    warn("Failed to load Rayfield UI Library")
+    return
+end
+
+-- Initialize other required services and modules with error handling
+local function safeRequire(module)
+    local success, result = pcall(function() return require(module) end)
+    return success and result or nil
+end
+
+local boxmodule = safeRequire(game:GetService("ReplicatedStorage").Modules.BoxModule)
+local itemdatabase = safeRequire(game:GetService("ReplicatedStorage").Database.Sync.Item)
+
+if not boxmodule or not itemdatabase then
+    warn("Essential game modules not found")
+    return
+end
+
+-- Try to get the inventory script environment safely
+local hi
+local success, env = pcall(function()
+    return getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)
+end)
+if success and env then
+    hi = env._G
+else
+    warn("Could not access inventory script environment")
+    hi = {NewItem = function() warn("Fake NewItem called") end} -- Fallback
+end
+
 getgenv().newValue = ""
 
--- Add these variables for equipping
+-- Set up remote events with error handling
 local replicatedStorage = game:GetService("ReplicatedStorage")
-local remoteEvents = replicatedStorage:WaitForChild("RemoteEvents")
-local equipRemote = remoteEvents:WaitForChild("EquipWeapon")
-local inventoryRemote = remoteEvents:WaitForChild("InventoryUpdate")
+local remoteEvents = replicatedStorage:WaitForChild("RemoteEvents", 5) or warn("RemoteEvents not found")
+local equipRemote = remoteEvents and remoteEvents:WaitForChild("EquipWeapon", 5) or warn("EquipWeapon remote not found")
+local inventoryRemote = remoteEvents and remoteEvents:WaitForChild("InventoryUpdate", 5) or warn("InventoryUpdate remote not found")
 
-function getrandombox()
-    local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
+-- Function to get a random box safely
+local function getrandombox()
+    local boxes = safeRequire(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
+    if not boxes then return nil end
+    
     local keys = {}
-    for k, _ in pairs(boxes) do
+    for k in pairs(boxes) do
         table.insert(keys, k)
     end
-    return keys[math.random(1, #keys)]
+    return #keys > 0 and keys[math.random(1, #keys)] or nil
 end
 
-function opencrate(ITEM_NAME)
-    boxmodule.OpenBox(getrandombox(), ITEM_NAME)
-    hi.NewItem(ITEM_NAME, nil, nil, 'Weapons', 1)
-    
-    -- Automatically equip the item after spawning
-    if ITEM_NAME then
-        equipItem(ITEM_NAME)
+-- Improved crate opening with error handling
+local function opencrate(ITEM_NAME)
+    if not ITEM_NAME or ITEM_NAME == "" then
+        warn("No item name provided to opencrate")
+        return false
     end
+
+    local boxName = getrandombox()
+    if not boxName then
+        warn("Could not find a valid box to open")
+        return false
+    end
+
+    local success, err = pcall(function()
+        boxmodule.OpenBox(boxName, ITEM_NAME)
+        hi.NewItem(ITEM_NAME, nil, nil, 'Weapons', 1)
+    end)
+
+    if not success then
+        warn("Error in opencrate:", err)
+        return false
+    end
+
+    return true
 end
 
--- New function to equip items
-function equipItem(itemName)
-    -- Wait a brief moment to ensure the item is in inventory
+-- Improved item equipping function
+local function equipItem(itemName)
+    if not itemName or itemName == "" then
+        warn("No item name provided to equipItem")
+        return false
+    end
+
+    if not equipRemote or not inventoryRemote then
+        warn("Required remotes not available for equipping")
+        return false
+    end
+
+    -- Wait for the item to potentially appear in inventory
     wait(0.5)
-    
-    -- Get the player's current inventory
-    local player = game.Players.LocalPlayer
-    local profile = require(replicatedStorage.Modules.ProfileData)
+
+    local profile = safeRequire(replicatedStorage.Modules.ProfileData)
+    if not profile then
+        warn("Could not access profile data")
+        return false
+    end
+
     local weapons = profile.Weapons
-    
-    -- Check if the item exists in inventory
+    if not weapons or not weapons.Owned then
+        warn("Invalid weapons data structure")
+        return false
+    end
+
     if weapons.Owned[itemName] and weapons.Owned[itemName] > 0 then
-        -- Equip the weapon
-        equipRemote:FireServer(itemName)
-        
-        -- Update equipped weapon in profile
-        weapons.Equipped = itemName
-        inventoryRemote:FireServer(weapons)
-        
-        print("Equipped:", itemName)
+        local success, err = pcall(function()
+            equipRemote:FireServer(itemName)
+            weapons.Equipped = itemName
+            inventoryRemote:FireServer(weapons)
+        end)
+
+        if not success then
+            warn("Error equipping item:", err)
+            return false
+        end
+        return true
     else
         warn("Item not found in inventory:", itemName)
+        return false
     end
 end
 
-function getrawnamebyrealname(realname)
-    for i, _ in pairs(itemdatabase) do
-        if realname:lower() == i:lower() then
-            return i
+-- Item name conversion with error handling
+local function getrawnamebyrealname(realname)
+    if not realname or realname == "" then return nil end
+    if not itemdatabase then return nil end
+
+    realname = realname:lower()
+    for name in pairs(itemdatabase) do
+        if realname == name:lower() then
+            return name
         end
     end
+    return nil
 end
 
-function getImage(iname)
+-- Image lookup with error handling
+local function getImage(iname)
+    if not iname or iname == "" then return nil end
+    if not itemdatabase then return nil end
+
+    iname = iname:lower()
     for name, info in pairs(itemdatabase) do
-        if iname:lower() == name:lower() then
+        if iname == name:lower() and info.Image then
             return info.Image
         end
     end
+    return nil
 end
 
-function fakeItem()
-    local jj = Instance.new("Frame")
-    jj.Name = "NewItem"
-    local gui = game:GetService("Players").LocalPlayer.PlayerGui.MainGUI
-    if gui:FindFirstChild("Game") and gui.Game:FindFirstChild("Inventory") then
-        jj.Parent = gui.Game.Inventory.Main.Weapons.Items.Container.Classic.Container
-    elseif gui:FindFirstChild("Lobby") and gui.Lobby.Screens:FindFirstChild("Inventory") then
-        jj.Parent = gui.Lobby.Screens.Inventory.Main.Weapons.Items.Container.Classic.Container
-    end
-    jj.Size = UDim2.new(0.2, 0, 0.25, 0)
-    jj.BackgroundTransparency = 1
+-- Create the UI with error handling
+local success, window = pcall(function()
+    return Rayfield:CreateWindow({
+        Name = "Item Spawner",
+        LoadingTitle = "Loading Item Spawner",
+        LoadingSubtitle = "by Heavenbatumbading",
+        ConfigurationSaving = {
+            Enabled = false
+        },
+        Discord = {
+            Enabled = false
+        },
+        KeySystem = false
+    })
+end)
 
-    local kk = Instance.new("Frame", jj)
-    kk.Name = "Container"
-    kk.Position = UDim2.new(0, 3, 0, 3)
-    kk.Size = UDim2.new(1, -6, 0.825, -6)
-    kk.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
-    kk.BorderSizePixel = 2
+if not success or not window then
+    warn("Failed to create Rayfield window")
+    return
+end
 
-    local ll = Instance.new("ImageLabel", kk)
-    ll.Name = "Icon"
-    ll.Size = UDim2.new(1, 0, 1, 0)
-    ll.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ll.AnchorPoint = Vector2.new(0.5, 0.5)
-    ll.Image = getImage(getgenv().newValue)
-    ll.BackgroundTransparency = 1
+-- Create the main tab
+local mainTab = window:CreateTab("Main", 4483362458)
+mainTab:CreateSection("Item Spawning")
 
-    local hh = Instance.new("TextLabel", kk)
-    hh.Name = "Amount"
-    hh.Size = UDim2.new(0.5, 0, 0.225, 0)
-    hh.Position = UDim2.new(1, -4, 0, 3)
-    hh.AnchorPoint = Vector2.new(1, 0)
-    hh.BackgroundTransparency = 1
-    hh.TextColor3 = Color3.new(1, 1, 1)
-    hh.TextScaled = true
-    hh.Text = ""
+-- Item input
+local input = mainTab:CreateInput({
+    Name = "Item Name",
+    PlaceholderText = "Enter item name",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Value)
+        getgenv().newValue = getrawnamebyrealname(Value) or Value
+    end,
+})
 
-    local gg = Instance.new("Frame", jj)
-    gg.Name = "ItemName"
-    gg.Position = UDim2.new(0, 3, 0.8, 3)
-    gg.Size = UDim2.new(1, -6, 0.2, -4)
-    gg.BorderSizePixel = 2
-
-    for name, info in pairs(itemdatabase) do
-        if getgenv().newValue:lower() == name:lower() then
-            if info.Rarity == "Godly" then
-                gg.BackgroundColor3 = Color3.fromRGB(255, 0, 179)
-            elseif info.Rarity == "Ancient" then
-                gg.BackgroundColor3 = Color3.fromRGB(100, 10, 255)
-            end
+-- Spawn button
+mainTab:CreateButton({
+    Name = "Spawn Item",
+    Callback = function()
+        if not getgenv().newValue or getgenv().newValue == "" then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Please enter an item name first",
+                Duration = 3,
+            })
+            return
         end
-    end
 
-    local bg = Instance.new("ImageLabel", gg)
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.Image = "rbxassetid://2957790421"
-    bg.BackgroundTransparency = 1
-
-    local lb = Instance.new("TextLabel", gg)
-    lb.Name = "Label"
-    lb.Position = UDim2.new(0.5, 0, 0.5, 0)
-    lb.AnchorPoint = Vector2.new(0.5, 0.5)
-    lb.Size = UDim2.new(0.9, 0, 0.9, 0)
-    lb.BackgroundTransparency = 1
-    lb.TextColor3 = Color3.new(1, 1, 1)
-    lb.TextStrokeTransparency = 0.7
-    lb.Font = Enum.Font.SourceSansBold
-    lb.Text = getgenv().newValue
-    lb.TextScaled = true
-end
-
-local Window = Rayfield:CreateWindow({
-   Name = "Heavenbatumbading",
-   Icon = 0,
-   LoadingTitle = "Almaz Spawner",
-   LoadingSubtitle = "by Heavenbatumbading",
-   Theme = "Ocean",
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false
+        local spawned = opencrate(getgenv().newValue)
+        if spawned then
+            Rayfield:Notify({
+                Title = "Success",
+                Content = "Spawned " .. getgenv().newValue,
+                Duration = 3,
+            })
+            
+            -- Try to equip after spawning
+            task.delay(1, function()
+                local equipped = equipItem(getgenv().newValue)
+                if equipped then
+                    Rayfield:Notify({
+                        Title = "Success",
+                        Content = "Equipped " .. getgenv().newValue,
+                        Duration = 3,
+                    })
+                end
+            end)
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Failed to spawn item",
+                Duration = 3,
+            })
+        end
+    end,
 })
 
-local Tab = Window:CreateTab("Spawner", 4483362458)
-Tab:CreateSection("Youtube: Almaz0")
+-- Manual equip button
+mainTab:CreateButton({
+    Name = "Equip Item",
+    Callback = function()
+        if not getgenv().newValue or getgenv().newValue == "" then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "No item selected to equip",
+                Duration = 3,
+            })
+            return
+        end
 
-Tab:CreateInput({
-   Name = "Item",
-   CurrentValue = "",
-   PlaceholderText = "Item",
-   RemoveTextAfterFocusLost = false,
-   Callback = function(Value)
-       getgenv().newValue = getrawnamebyrealname(Value)
-   end,
+        local equipped = equipItem(getgenv().newValue)
+        if equipped then
+            Rayfield:Notify({
+                Title = "Success",
+                Content = "Equipped " .. getgenv().newValue,
+                Duration = 3,
+            })
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Failed to equip " .. getgenv().newValue,
+                Duration = 3,
+            })
+        end
+    end,
 })
 
-Tab:CreateButton({
-   Name = "Spawn Item",
-   Callback = function()
-       opencrate(getgenv().newValue)
-       fakeItem()
-   end,
-})
+-- Debug section
+local debugTab = window:CreateTab("Debug", 4483362458)
+debugTab:CreateSection("Debug Information")
 
--- Add a new button to equip items manually if needed
-Tab:CreateButton({
-   Name = "Equip Item",
-   Callback = function()
-       if getgenv().newValue and getgenv().newValue ~= "" then
-           equipItem(getgenv().newValue)
-       else
-           Rayfield:Notify({
-               Title = "Error",
-               Content = "No item selected to equip",
-               Duration = 3,
-               Actions = {
-                   Ignore = {
-                       Name = "Okay",
-                       Callback = function()
-                       end
-                   },
-               },
-           })
-       end
-   end,
-})
+debugTab:CreateLabel("Game Loaded: " .. tostring(game:IsLoaded()))
+debugTab:CreateLabel("Rayfield Loaded: " .. tostring(Rayfield ~= nil))
+debugTab:CreateLabel("BoxModule Available: " .. tostring(boxmodule ~= nil))
+debugTab:CreateLabel("ItemDatabase Available: " .. tostring(itemdatabase ~= nil))
+debugTab:CreateLabel("Equip Remote Available: " .. tostring(equipRemote ~= nil))
+
+-- Load the UI
+Rayfield:LoadConfiguration()
