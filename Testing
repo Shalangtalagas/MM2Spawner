@@ -1,108 +1,111 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Initialize required services and modules
-local boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
-local itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
 
-getgenv().newValue = ""
+-- Modules
+local ProfileData = require(ReplicatedStorage.Modules.ProfileData)
+local ItemDatabase = require(ReplicatedStorage.Database.Sync.Item)
 
--- Improved function to add items to inventory
-local function addItemToInventory(itemName)
-    -- Get the player's profile data
-    local profileModule = require(game:GetService("ReplicatedStorage").Modules.ProfileData)
-    local weapons = profileModule.Weapons
+-- Remote Events
+local InventoryUpdate = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("InventoryUpdate")
+
+-- Item Spawner Function
+local function spawnItem(itemName)
+    -- Verify item exists in database
+    local validItem = false
+    for name in pairs(ItemDatabase) do
+        if name:lower() == itemName:lower() then
+            itemName = name -- Get correct capitalization
+            validItem = true
+            break
+        end
+    end
     
-    -- Add the item to inventory
-    if not weapons.Owned[itemName] then
-        weapons.Owned[itemName] = 1
+    if not validItem then
+        return false, "Item not found in database"
+    end
+    
+    -- Add to inventory
+    if not ProfileData.Weapons.Owned[itemName] then
+        ProfileData.Weapons.Owned[itemName] = 1
     else
-        weapons.Owned[itemName] = weapons.Owned[itemName] + 1
+        ProfileData.Weapons.Owned[itemName] += 1
     end
     
-    -- Force update inventory
-    game:GetService("ReplicatedStorage").RemoteEvents.InventoryUpdate:FireServer(weapons)
+    -- Force inventory update
+    InventoryUpdate:FireServer(ProfileData.Weapons)
     
-    -- Update UI (if in inventory screen)
-    if game.Players.LocalPlayer.PlayerGui:FindFirstChild("MainGUI") then
-        local inventoryScript = game.Players.LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem
-        if inventoryScript then
-            local hi = getsenv(inventoryScript)._G
-            hi.NewItem(itemName, nil, nil, 'Weapons', 1)
-        end
-    end
+    -- Try to update UI
+    pcall(function()
+        local inventoryScript = Player.PlayerGui.MainGUI.Inventory.NewItem
+        local hi = getsenv(inventoryScript)._G
+        hi.NewItem(itemName, nil, nil, 'Weapons', 1)
+    end)
     
-    return true
+    return true, "Item spawned successfully"
 end
 
--- Function to convert display name to raw item name
-local function getrawnamebyrealname(realname)
-    for i in pairs(itemdatabase) do
-        if realname:lower() == i:lower() then
-            return i
-        end
-    end
-    return realname -- Return original if not found
-end
-
--- Create the main window
+-- Create UI
 local Window = Rayfield:CreateWindow({
     Name = "Item Spawner",
     LoadingTitle = "Loading Item Spawner",
     LoadingSubtitle = "by Heavenbatumbading",
-    ConfigurationSaving = {
-        Enabled = false
-    },
-    Discord = {
-        Enabled = false
-    },
+    ConfigurationSaving = {Enabled = false},
+    Discord = {Enabled = false},
     KeySystem = false
 })
 
--- Create the main tab
-local Tab = Window:CreateTab("Spawner", 4483362458)
+local Tab = Window:CreateTab("Main", 4483362458)
 Tab:CreateSection("Item Spawning")
 
--- Item input field
-Tab:CreateInput({
+local itemInput = Tab:CreateInput({
     Name = "Item Name",
-    PlaceholderText = "Enter item name",
+    PlaceholderText = "Enter exact item name",
     RemoveTextAfterFocusLost = false,
-    Callback = function(Value)
-        getgenv().newValue = getrawnamebyrealname(Value)
-    end,
+    Callback = function(Text) end
 })
 
--- Spawn button
 Tab:CreateButton({
     Name = "Spawn Item",
     Callback = function()
-        if not getgenv().newValue or getgenv().newValue == "" then
+        local itemName = itemInput.CurrentValue
+        if itemName == "" then
             Rayfield:Notify({
                 Title = "Error",
-                Content = "Please enter an item name first",
+                Content = "Please enter an item name",
                 Duration = 3,
             })
             return
         end
-
-        -- Spawn the item
-        local success = addItemToInventory(getgenv().newValue)
         
-        if success then
-            Rayfield:Notify({
-                Title = "Success",
-                Content = "Spawned " .. getgenv().newValue .. "\nCheck your inventory!",
-                Duration = 3,
-            })
-        else
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "Failed to spawn item",
-                Duration = 3,
-            })
-        end
+        local success, message = spawnItem(itemName)
+        
+        Rayfield:Notify({
+            Title = success and "Success" or "Error",
+            Content = message,
+            Duration = 3,
+        })
     end,
 })
 
--- Load the UI
+-- Auto-complete suggestions
+local commonItems = {
+    "Corrupt", "Gingerscope", "Traveler's Axe", "Harvester", "Celestial", 
+    "Icepiercer", "Vampire's Axe", "Batwing", "Elderwood Scythe", "Luger",
+    "Darkbringer", "Lightbringer", "Candleflame", "Chroma Luger", "Chroma Darkbringer"
+}
+
+Tab:CreateDropdown({
+    Name = "Quick Select",
+    Options = commonItems,
+    CurrentOption = "Select Item",
+    Flag = "ItemSelector",
+    Callback = function(Option)
+        itemInput:Set(Option)
+    end,
+})
+
 Rayfield:LoadConfiguration()
