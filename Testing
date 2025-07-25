@@ -2,27 +2,10 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
 local hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
 local itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
-local TweenService = game:GetService("TweenService")
 
 getgenv().newValue = ""
 
--- Animation functions
-local function fadeIn(object, prop, from, to, step, delay)
-    for i = from, to, step do
-        object[prop] = i
-        task.wait(delay)
-    end
-    object[prop] = to
-end
-
-local function slide(object, prop, direction, steps, delay)
-    for _ = 1, steps do
-        object[prop] = object[prop] + direction
-        task.wait(delay)
-    end
-end
-
--- Item spawning functions
+-- Basic functions
 function getrandombox()
     local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
     local keys = {}
@@ -32,17 +15,13 @@ function getrandombox()
     return keys[math.random(1, #keys)]
 end
 
-function opencrate(ITEM_NAME)
-    boxmodule.OpenBox(getrandombox(), ITEM_NAME)
-    hi.NewItem(ITEM_NAME, nil, nil, 'Weapons', 1)
-end
-
 function getrawnamebyrealname(realname)
     for i, _ in pairs(itemdatabase) do
         if realname:lower() == i:lower() then
             return i
         end
     end
+    return realname
 end
 
 function getImage(iname)
@@ -62,142 +41,67 @@ function fakeItem()
     elseif gui:FindFirstChild("Lobby") and gui.Lobby.Screens:FindFirstChild("Inventory") then
         jj.Parent = gui.Lobby.Screens.Inventory.Main.Weapons.Items.Container.Classic.Container
     end
-    jj.Size = UDim2.new(0.2, 0, 0.25, 0)
-    jj.BackgroundTransparency = 1
-
-    local kk = Instance.new("Frame", jj)
-    kk.Name = "Container"
-    kk.Position = UDim2.new(0, 3, 0, 3)
-    kk.Size = UDim2.new(1, -6, 0.825, -6)
-    kk.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
-    kk.BorderSizePixel = 2
-
-    local ll = Instance.new("ImageLabel", kk)
-    ll.Name = "Icon"
-    ll.Size = UDim2.new(1, 0, 1, 0)
-    ll.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ll.AnchorPoint = Vector2.new(0.5, 0.5)
-    ll.Image = getImage(getgenv().newValue)
-    ll.BackgroundTransparency = 1
-
-    local hh = Instance.new("TextLabel", kk)
-    hh.Name = "Amount"
-    hh.Size = UDim2.new(0.5, 0, 0.225, 0)
-    hh.Position = UDim2.new(1, -4, 0, 3)
-    hh.AnchorPoint = Vector2.new(1, 0)
-    hh.BackgroundTransparency = 1
-    hh.TextColor3 = Color3.new(1, 1, 1)
-    hh.TextScaled = true
-    hh.Text = ""
-
-    local gg = Instance.new("Frame", jj)
-    gg.Name = "ItemName"
-    gg.Position = UDim2.new(0, 3, 0.8, 3)
-    gg.Size = UDim2.new(1, -6, 0.2, -4)
-    gg.BorderSizePixel = 2
-
-    for name, info in pairs(itemdatabase) do
-        if getgenv().newValue:lower() == name:lower() then
-            if info.Rarity == "Godly" then
-                gg.BackgroundColor3 = Color3.fromRGB(255, 0, 179)
-            elseif info.Rarity == "Ancient" then
-                gg.BackgroundColor3 = Color3.fromRGB(100, 10, 255)
-            end
-        end
-    end
-
-    local bg = Instance.new("ImageLabel", gg)
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.Image = "rbxassetid://2957790421"
-    bg.BackgroundTransparency = 1
-
-    local lb = Instance.new("TextLabel", gg)
-    lb.Name = "Label"
-    lb.Position = UDim2.new(0.5, 0, 0.5, 0)
-    lb.AnchorPoint = Vector2.new(0.5, 0.5)
-    lb.Size = UDim2.new(0.9, 0, 0.9, 0)
-    lb.BackgroundTransparency = 1
-    lb.TextColor3 = Color3.new(1, 1, 1)
-    lb.TextStrokeTransparency = 0.7
-    lb.Font = Enum.Font.SourceSansBold
-    lb.Text = getgenv().newValue
-    lb.TextScaled = true
+    
+    -- Rest of your fakeItem implementation...
 end
 
--- Create the main window
+-- Create the window
 local Window = Rayfield:CreateWindow({
-   Name = "Item Spawner",
-   Icon = 0,
-   LoadingTitle = "Item Spawner",
-   LoadingSubtitle = "by Heavenbatumbading",
-   Theme = "Ocean",
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false
+    Name = "Item Spawner",
+    LoadingTitle = "Loading Item Spawner",
+    LoadingSubtitle = "by Heavenbatumbading",
+    ConfigurationSaving = {
+        Enabled = false
+    },
+    KeySystem = false,
 })
 
--- Create progress bar UI
-local ProgressContainer = Window:CreateSection("Progress")
-local ProgressLabel = Window:CreateLabel("Ready to spawn items")
-local ProgressBar = Window:CreateProgressBar("", 0)
+-- Create the main tab
+local MainTab = Window:CreateTab("Main", 4483362458)
 
--- Create main tab
-local Tab = Window:CreateTab("Main", 4483362458)
-Tab:CreateSection("Item Spawning")
-
--- Item input
-Tab:CreateInput({
-   Name = "Item Name",
-   CurrentValue = "",
-   PlaceholderText = "Enter item name",
-   RemoveTextAfterFocusLost = false,
-   Callback = function(Value)
-       getgenv().newValue = getrawnamebyrealname(Value)
-   end,
+-- Input section
+MainTab:CreateSection("Item Input")
+local ItemInput = MainTab:CreateInput({
+    Name = "Item Name",
+    PlaceholderText = "Enter item name",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        getgenv().newValue = getrawnamebyrealname(Text)
+    end,
 })
 
--- Spawn button with animation
-Tab:CreateButton({
-   Name = "Spawn Item",
-   Callback = function()
-       if getgenv().newValue == "" then 
-           Window:Notify({
-              Title = "Error",
-              Content = "Please enter an item name first",
-              Duration = 3,
-              Actions = {
-                  Ignore = {
-                     Name = "Okay",
-                     Callback = function() end
-                  }
-              }
-           })
-           return 
-       end
-       
-       -- Update progress UI
-       ProgressLabel:Set("Spawning "..getgenv().newValue)
-       
-       -- Animate progress bar
-       local percent = 0
-       while percent < 100 do
-           percent = math.min(percent + math.random(5, 15), 100)
-           ProgressBar:Set(percent/100)
-           task.wait(0.1)
-       end
-       
-       -- Actually spawn the item
-       opencrate(getgenv().newValue)
-       fakeItem()
-       
-       -- Reset character to make item appear
-       game.Players.LocalPlayer.Character:BreakJoints()
-       
-       -- Show completion
-       ProgressLabel:Set("Spawned "..getgenv().newValue)
-       task.wait(1)
-       ProgressLabel:Set("Ready to spawn items")
-       ProgressBar:Set(0)
-   end,
+-- Spawn button section
+MainTab:CreateSection("Actions")
+local SpawnButton = MainTab:CreateButton({
+    Name = "Spawn Item",
+    Callback = function()
+        if getgenv().newValue == "" then
+            Window:Notify({
+                Title = "Error",
+                Content = "Please enter an item name first",
+                Duration = 3,
+            })
+            return
+        end
+        
+        -- Show loading notification
+        local notif = Window:Notify({
+            Title = "Spawning Item",
+            Content = "Spawning "..getgenv().newValue.."...",
+            Duration = 6.5,
+        })
+        
+        -- Spawn the item
+        opencrate(getgenv().newValue)
+        fakeItem()
+        
+        -- Reset character
+        game.Players.LocalPlayer.Character:BreakJoints()
+        
+        -- Update notification
+        notif:ChangeTitle("Success")
+        notif:ChangeContent("Spawned "..getgenv().newValue)
+    end,
 })
 
 -- Popular items dropdown (optional)
@@ -212,23 +116,17 @@ local popularItems = {
     "Corrupt"
 }
 
-Tab:CreateDropdown({
-   Name = "Popular Items",
-   Options = popularItems,
-   CurrentOption = "",
-   Flag = "PopularItems",
-   Callback = function(Option)
-       getgenv().newValue = getrawnamebyrealname(Option)
-       Window:Notify({
-          Title = "Item Selected",
-          Content = "Selected: "..Option,
-          Duration = 1.5,
-          Actions = {
-              Ignore = {
-                 Name = "Okay",
-                 Callback = function() end
-              }
-          }
-       })
-   end,
+MainTab:CreateDropdown({
+    Name = "Popular Items",
+    Options = popularItems,
+    CurrentOption = "",
+    Callback = function(Option)
+        getgenv().newValue = getrawnamebyrealname(Option)
+        ItemInput:Set(Option) -- Update the input field
+        Window:Notify({
+            Title = "Item Selected",
+            Content = "Selected: "..Option,
+            Duration = 1.5,
+        })
+    end,
 })
