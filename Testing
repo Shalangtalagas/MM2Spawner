@@ -40,7 +40,8 @@ local items = {
     {original = "Blossom_G", custom = "Blossom"},
     {original = "ZombieBat", custom = "Bat"},
     {original = "Makeshift", custom = "Makeshift"},
-    {original = "Sorry", custom = "Corrupt"}
+    {original = "Sorry", custom = "Corrupt"},
+    {original = "Darkbringer", custom = "Darkbringer"}
 }
 
 -- Function to get item image
@@ -53,22 +54,30 @@ local function getImage(iname)
     return "rbxassetid://0" -- Default image if not found
 end
 
--- Unbox Animation Function
+-- Enhanced Unbox Animation Function
 local function playUnboxAnimation(itemName)
     -- Create container frame
     local container = Instance.new("Frame")
     container.Name = "UnboxAnimation"
-    container.Size = UDim2.new(0.4, 0, 0.5, 0)
+    container.Size = UDim2.new(0.5, 0, 0.6, 0)
     container.Position = UDim2.new(0.5, 0, 0.5, 0)
     container.AnchorPoint = Vector2.new(0.5, 0.5)
     container.BackgroundTransparency = 1
     container.ZIndex = 100
-    container.Parent = player:WaitForChild("PlayerGui"):WaitForChild("MainGUI") or player.PlayerGui
+    container.Parent = player:WaitForChild("PlayerGui")
+
+    -- Create dark background
+    local background = Instance.new("Frame")
+    background.Size = UDim2.new(1, 0, 1, 0)
+    background.BackgroundColor3 = Color3.new(0, 0, 0)
+    background.BackgroundTransparency = 1
+    background.ZIndex = 99
+    background.Parent = container
 
     -- Create box image
     local box = Instance.new("ImageLabel")
     box.Name = "Box"
-    box.Size = UDim2.new(1, 0, 1, 0)
+    box.Size = UDim2.new(0.6, 0, 0.6, 0)
     box.BackgroundTransparency = 1
     box.Image = "rbxassetid://14255343935" -- Mystery box image
     box.ZIndex = 101
@@ -77,8 +86,8 @@ local function playUnboxAnimation(itemName)
     -- Create item reveal
     local item = Instance.new("ImageLabel")
     item.Name = "Item"
-    item.Size = UDim2.new(0.8, 0, 0.8, 0)
-    item.Position = UDim2.new(0.1, 0, 0.1, 0)
+    item.Size = UDim2.new(0.5, 0, 0.5, 0)
+    item.Position = UDim2.new(0.25, 0, 0.25, 0)
     item.BackgroundTransparency = 1
     item.Image = getImage(itemName)
     item.ImageTransparency = 1 -- Start invisible
@@ -91,31 +100,36 @@ local function playUnboxAnimation(itemName)
     glow.Size = UDim2.new(1.5, 0, 1.5, 0)
     glow.Position = UDim2.new(-0.25, 0, -0.25, 0)
     glow.BackgroundTransparency = 1
-    glow.Image = "rbxassetid://14255343935" -- Glow image (using same as box for example)
+    glow.Image = "rbxassetid://14255343935" -- Glow image
     glow.ImageTransparency = 1 -- Start invisible
     glow.ZIndex = 101
     glow.Parent = container
 
     -- Create item name label
     local nameLabel = Instance.new("TextLabel")
-    nameLabel.Text = itemName
+    nameLabel.Text = itemName:upper()
     nameLabel.Size = UDim2.new(1, 0, 0.1, 0)
-    nameLabel.Position = UDim2.new(0, 0, 1, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0.8, 0)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    nameLabel.TextColor3 = Color3.fromRGB(255, 215, 0) -- Gold color
     nameLabel.Font = Enum.Font.GothamBlack
-    nameLabel.TextSize = 16
+    nameLabel.TextSize = 24
     nameLabel.TextTransparency = 1
     nameLabel.ZIndex = 102
+    nameLabel.TextStrokeTransparency = 0.7
+    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
     nameLabel.Parent = container
 
     -- Animation sequence
     local function animate()
+        -- Fade in background
+        TweenService:Create(background, TweenInfo.new(0.3), {BackgroundTransparency = 0.7}):Play()
+        
         -- Box shake animation
         for i = 1, 5 do
-            local shake1 = TweenService:Create(box, TweenInfo.new(0.05), {Position = UDim2.new(0.1, 0, 0.1, 0)})
-            local shake2 = TweenService:Create(box, TweenInfo.new(0.05), {Position = UDim2.new(-0.1, 0, -0.1, 0)})
-            local shake3 = TweenService:Create(box, TweenInfo.new(0.05), {Position = UDim2.new(0, 0, 0, 0)})
+            local shake1 = TweenService:Create(box, TweenInfo.new(0.05), {Position = UDim2.new(0.52, 0, 0.48, 0)})
+            local shake2 = TweenService:Create(box, TweenInfo.new(0.05), {Position = UDim2.new(0.48, 0, 0.52, 0)})
+            local shake3 = TweenService:Create(box, TweenInfo.new(0.05), {Position = UDim2.new(0.5, 0, 0.5, 0)})
             
             shake1:Play()
             shake1.Completed:Wait()
@@ -149,11 +163,21 @@ local function playUnboxAnimation(itemName)
             pulse2.Completed:Wait()
         end
 
+        -- Wait a moment before fading out
+        wait(1.5)
+        
         -- Fade out
         local fadeOut = TweenService:Create(container, TweenInfo.new(1), {BackgroundTransparency = 1})
-        fadeOut:Play()
-        fadeOut.Completed:Wait()
+        local bgFadeOut = TweenService:Create(background, TweenInfo.new(1), {BackgroundTransparency = 1})
+        local itemFadeOut = TweenService:Create(item, TweenInfo.new(1), {ImageTransparency = 1})
+        local nameFadeOut = TweenService:Create(nameLabel, TweenInfo.new(1), {TextTransparency = 1})
         
+        fadeOut:Play()
+        bgFadeOut:Play()
+        itemFadeOut:Play()
+        nameFadeOut:Play()
+        
+        fadeOut.Completed:Wait()
         container:Destroy()
     end
 
@@ -325,44 +349,6 @@ closeButton.ZIndex = 2
 closeButton.Parent = mainFrame
 Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0, 6)
 
--- Progress Bar Table
-local progressFrame = Instance.new("Frame")
-progressFrame.Size = UDim2.new(0, 240, 0, 40)
-progressFrame.Position = UDim2.new(1, -250, 0, 100)
-progressFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-progressFrame.BackgroundTransparency = 1
-progressFrame.ZIndex = 2
-progressFrame.Parent = screenGui
-Instance.new("UICorner", progressFrame).CornerRadius = UDim.new(0, 6)
-
-local progressLabel = Instance.new("TextLabel")
-progressLabel.Size = UDim2.new(1, 0, 0, 16)
-progressLabel.BackgroundTransparency = 1
-progressLabel.Text = "Progress: Waiting..."
-progressLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-progressLabel.Font = Enum.Font.Gotham
-progressLabel.TextSize = 10
-progressLabel.TextTransparency = 1
-progressLabel.ZIndex = 2
-progressLabel.Parent = progressFrame
-
-local barBG = Instance.new("Frame")
-barBG.Size = UDim2.new(0.95, 0, 0, 8)
-barBG.Position = UDim2.new(0.025, 0, 0, 20)
-barBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-barBG.BackgroundTransparency = 1
-barBG.ZIndex = 2
-barBG.Parent = progressFrame
-Instance.new("UICorner", barBG).CornerRadius = UDim.new(1, 0)
-
-local barFill = Instance.new("Frame")
-barFill.Size = UDim2.new(0, 0, 1, 0)
-barFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-barFill.BackgroundTransparency = 1
-barFill.ZIndex = 2
-barFill.Parent = barBG
-Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
-
 -- Toggle Table Visibility
 local isTableOpen = false
 openButton.MouseButton1Click:Connect(function()
@@ -372,16 +358,12 @@ openButton.MouseButton1Click:Connect(function()
 
     local mainFrameHeight = isTableOpen and 250 or 180
     local closeButtonY = isTableOpen and 215 or 145
-    local progressFrameY = isTableOpen and 170 or 100
 
     TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Size = UDim2.new(0, 240, 0, mainFrameHeight)
     }):Play()
     TweenService:Create(closeButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.6, 0, 0, closeButtonY)
-    }):Play()
-    TweenService:Create(progressFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position = UDim2.new(1, -250, 0, progressFrameY)
     }):Play()
 
     local grow = TweenService:Create(openButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0.37, 0, 0, 22)})
@@ -448,53 +430,26 @@ local function spawnAndEquipItem(name)
     game.Players.LocalPlayer.Character:BreakJoints()
 end
 
--- Progress Bar Animation
-local function showProgress(customName)
-    local originalName = getOriginalName(customName) -- Convert custom name to original for spawning
-    
-    -- Show progress bar
-    TweenService:Create(progressFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
-    TweenService:Create(progressLabel, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(barBG, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
-    TweenService:Create(barFill, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
-
-    local percent = 0
-    while percent < 100 do
-        percent += math.random(5, 15)
-        percent = math.clamp(percent, 0, 100)
-        progressLabel.Text = "Spawning: " .. customName .. " (" .. percent .. "%)" -- Show custom name in progress
-        barFill:TweenSize(UDim2.new(percent / 100, 0, 1, 0), "Out", "Quad", 0.1, true)
-        task.wait(0.5)
-    end
-
-    progressLabel.Text = "Spawned & Equipped: " .. customName -- Show custom name when done
-    
-    -- Play unbox animation before spawning
-    playUnboxAnimation(customName)
-    
-    -- Spawn and equip using original name
-    spawnAndEquipItem(originalName)
-
-    task.delay(0.4, function()
-        TweenService:Create(progressFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(progressLabel, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-        TweenService:Create(barBG, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(barFill, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-    end)
-end
-
 -- Button Connections
 spawnButton.MouseButton1Click:Connect(function()
     local itemName = inputBox.Text
     if itemName == "" then return end
 
+    -- Play button click animation
     local grow = TweenService:Create(spawnButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0.47, 0, 0, 27)})
     grow:Play()
     grow.Completed:Connect(function()
         spawnButton:TweenSize(UDim2.new(0.45, 0, 0, 25), "Out", "Quad", 0.1, true)
     end)
 
-    showProgress(itemName) -- Pass custom name to progress
+    -- Play unbox animation
+    playUnboxAnimation(itemName)
+    
+    -- Spawn the item after a short delay (so animation plays first)
+    wait(3) -- Wait for animation to complete
+    local originalName = getOriginalName(itemName)
+    spawnAndEquipItem(originalName)
+    
     inputBox.Text = ""
 end)
 
