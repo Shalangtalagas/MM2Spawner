@@ -43,31 +43,7 @@ local items = {
 }
 
 -- Animation functions from first script
-boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
-hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
 itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
-
-function getrandombox()
-    local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
-    local keys = {}
-    for k, _ in pairs(boxes) do
-        table.insert(keys, k)
-    end
-    return keys[math.random(1, #keys)]
-end
-
-function opencrate(ITEM_NAME)
-    boxmodule.OpenBox(getrandombox(), ITEM_NAME)
-    hi.NewItem(ITEM_NAME, nil, nil, 'Weapons', 1)
-end
-
-function getrawnamebyrealname(realname)
-    for i, _ in pairs(itemdatabase) do
-        if realname:lower() == i:lower() then
-            return i
-        end
-    end
-end
 
 function getImage(iname)
     for name, info in pairs(itemdatabase) do
@@ -408,11 +384,36 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Spawn and Equip Function
+-- Spawn and Equip Function (from second script)
 local function spawnAndEquipItem(name)
+    local DataBase, PlayerData = require(game:GetService("ReplicatedStorage").Database.Sync.Item), require(game:GetService("ReplicatedStorage").Modules.ProfileData)
+    local PlayerWeapons = PlayerData.Weapons
     local originalName = getOriginalName(name)
-    opencrate(originalName)
+
+    -- Spawn the item
+    if not PlayerWeapons.Owned[originalName] then
+        PlayerWeapons.Owned[originalName] = 1
+    else
+        PlayerWeapons.Owned[originalName] += 1
+    end
+
+    -- Equip the item
+    if string.find(originalName, "Gun") then
+        PlayerWeapons.Equipped.Gun = originalName
+    elseif string.find(originalName, "Axe") or string.find(originalName, "Sword") or string.find(originalName, "Knife") or string.find(originalName, "Blade") then
+        PlayerWeapons.Equipped.Melee = originalName
+    end
+
+    -- Update player data
+    game:GetService("RunService"):BindToRenderStep("InventoryUpdate", 0, function()
+        PlayerData.Weapons = PlayerWeapons
+    end)
+
+    -- Show animation
     fakeItem(originalName)
+    
+    -- Respawn to see changes
+    game.Players.LocalPlayer.Character:BreakJoints()
 end
 
 -- Progress Bar Animation
@@ -426,13 +427,13 @@ local function showProgress(customName)
     while percent < 100 do
         percent += math.random(5, 15)
         percent = math.clamp(percent, 0, 100)
-        progressLabel.Text = "Spawning: " .. customName .. " (" .. percent .. "%)" -- Show custom name in progress
+        progressLabel.Text = "Spawning: " .. customName .. " (" .. percent .. "%)"
         barFill:TweenSize(UDim2.new(percent / 100, 0, 1, 0), "Out", "Quad", 0.1, true)
         task.wait(0.5)
     end
 
-    progressLabel.Text = "Spawned & Equipped: " .. customName -- Show custom name when done
-    spawnAndEquipItem(customName) -- Spawn and equip using original name
+    progressLabel.Text = "Spawned & Equipped: " .. customName
+    spawnAndEquipItem(customName)
 
     task.delay(0.4, function()
         TweenService:Create(progressFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
@@ -453,7 +454,7 @@ spawnButton.MouseButton1Click:Connect(function()
         spawnButton:TweenSize(UDim2.new(0.45, 0, 0, 25), "Out", "Quad", 0.1, true)
     end)
 
-    showProgress(itemName) -- Pass custom name to progress
+    showProgress(itemName)
     inputBox.Text = ""
 end)
 
