@@ -2,8 +2,27 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
 local hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
 local itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
+local TweenService = game:GetService("TweenService")
+
 getgenv().newValue = ""
 
+-- Animation functions
+local function fadeIn(object, prop, from, to, step, delay)
+    for i = from, to, step do
+        object[prop] = i
+        task.wait(delay)
+    end
+    object[prop] = to
+end
+
+local function slide(object, prop, direction, steps, delay)
+    for _ = 1, steps do
+        object[prop] = object[prop] + direction
+        task.wait(delay)
+    end
+end
+
+-- Item spawning functions
 function getrandombox()
     local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
     local keys = {}
@@ -105,6 +124,7 @@ function fakeItem()
     lb.TextScaled = true
 end
 
+-- Create the main window
 local Window = Rayfield:CreateWindow({
    Name = "Item Spawner",
    Icon = 0,
@@ -115,9 +135,16 @@ local Window = Rayfield:CreateWindow({
    DisableBuildWarnings = false
 })
 
-local Tab = Window:CreateTab("Main", 4483362458)
-Tab:CreateSection("Item Spawner")
+-- Create progress bar UI
+local ProgressContainer = Window:CreateSection("Progress")
+local ProgressLabel = Window:CreateLabel("Ready to spawn items")
+local ProgressBar = Window:CreateProgressBar("", 0)
 
+-- Create main tab
+local Tab = Window:CreateTab("Main", 4483362458)
+Tab:CreateSection("Item Spawning")
+
+-- Item input
 Tab:CreateInput({
    Name = "Item Name",
    CurrentValue = "",
@@ -128,44 +155,80 @@ Tab:CreateInput({
    end,
 })
 
+-- Spawn button with animation
 Tab:CreateButton({
    Name = "Spawn Item",
    Callback = function()
+       if getgenv().newValue == "" then 
+           Window:Notify({
+              Title = "Error",
+              Content = "Please enter an item name first",
+              Duration = 3,
+              Actions = {
+                  Ignore = {
+                     Name = "Okay",
+                     Callback = function() end
+                  }
+              }
+           })
+           return 
+       end
+       
+       -- Update progress UI
+       ProgressLabel:Set("Spawning "..getgenv().newValue)
+       
+       -- Animate progress bar
+       local percent = 0
+       while percent < 100 do
+           percent = math.min(percent + math.random(5, 15), 100)
+           ProgressBar:Set(percent/100)
+           task.wait(0.1)
+       end
+       
+       -- Actually spawn the item
        opencrate(getgenv().newValue)
        fakeItem()
+       
+       -- Reset character to make item appear
+       game.Players.LocalPlayer.Character:BreakJoints()
+       
+       -- Show completion
+       ProgressLabel:Set("Spawned "..getgenv().newValue)
+       task.wait(1)
+       ProgressLabel:Set("Ready to spawn items")
+       ProgressBar:Set(0)
    end,
 })
 
--- Drag and drop functionality for the GUI
-local UserInputService = game:GetService("UserInputService")
-local dragToggle = nil
-local dragSpeed = 0.25
-local dragStart = nil
-local startPos = nil
+-- Popular items dropdown (optional)
+local popularItems = {
+    "Luger",
+    "Darkbringer",
+    "Lightbringer",
+    "Chroma Darkbringer",
+    "Chroma Lightbringer",
+    "Harvester",
+    "Gingerscope",
+    "Corrupt"
+}
 
-local function updateInput(input)
-    local delta = input.Position - dragStart
-    local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    game:GetService("TweenService"):Create(Window, TweenInfo.new(dragSpeed), {Position = position}):Play()
-end
-
-Window.InputBegan:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-        dragToggle = true
-        dragStart = input.Position
-        startPos = Window.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragToggle = false
-            end
-        end)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if dragToggle then
-            updateInput(input)
-        end
-    end
-end)
+Tab:CreateDropdown({
+   Name = "Popular Items",
+   Options = popularItems,
+   CurrentOption = "",
+   Flag = "PopularItems",
+   Callback = function(Option)
+       getgenv().newValue = getrawnamebyrealname(Option)
+       Window:Notify({
+          Title = "Item Selected",
+          Content = "Selected: "..Option,
+          Duration = 1.5,
+          Actions = {
+              Ignore = {
+                 Name = "Okay",
+                 Callback = function() end
+              }
+          }
+       })
+   end,
+})
