@@ -355,20 +355,28 @@ local function spawnAndEquipItem(name)
     game.Players.LocalPlayer.Character:BreakJoints()
 end
 
--- Progress bar animation
+-- Progress bar animation (30-second version)
 local function showProgress(customName)
     TweenService:Create(progressFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
     TweenService:Create(progressLabel, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
     TweenService:Create(barBG, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
     TweenService:Create(barFill, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
 
+    local startTime = os.clock()
+    local duration = 30 -- 30 seconds total duration
     local percent = 0
+
     while percent < 100 do
-        percent += math.random(5, 15)
-        percent = math.clamp(percent, 0, 100)
-        progressLabel.Text = "Opening Crate: " .. customName .. " (" .. percent .. "%)"
+        local elapsed = os.clock() - startTime
+        percent = math.min((elapsed / duration) * 100, 100)
+        
+        -- Keep the random fluctuation for visual interest
+        local displayPercent = percent + math.random(-3, 3)
+        displayPercent = math.clamp(displayPercent, 0, 100)
+        
+        progressLabel.Text = "Opening Crate: " .. customName .. " (" .. math.floor(displayPercent) .. "%)"
         barFill:TweenSize(UDim2.new(percent/100, 0, 1, 0), "Out", "Quad", 0.1, true)
-        task.wait(0.5)
+        task.wait(0.1) -- Smoother animation
     end
 
     progressLabel.Text = "Opened Crate & Equipped: " .. customName
