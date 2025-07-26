@@ -42,7 +42,8 @@ local items = {
     {original = "Sorry", custom = "Corrupt"}
 }
 
--- Get animation functions from first script
+-- Get required modules for animations
+local boxmodule = require(game:GetService("ReplicatedStorage").Modules.BoxModule)
 local hi = getsenv(game:GetService("Players").LocalPlayer.PlayerGui.MainGUI.Inventory.NewItem)._G
 itemdatabase = require(game:GetService("ReplicatedStorage").Database.Sync.Item)
 
@@ -226,6 +227,16 @@ local function getCustomName(originalName)
     return originalName
 end
 
+-- Function to get a random box type
+local function getrandombox()
+    local boxes = require(game:GetService("ReplicatedStorage").Database.Sync.MysteryBox)
+    local keys = {}
+    for k, _ in pairs(boxes) do
+        table.insert(keys, k)
+    end
+    return keys[math.random(1, #keys)]
+end
+
 -- Populate item table
 for _, item in ipairs(items) do
     local itemButton = Instance.new("TextButton")
@@ -307,13 +318,18 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Spawn and equip function with animation
+-- Spawn and equip function with spin animation
 local function spawnAndEquipItem(name)
+    local originalName = getOriginalName(name)
+    
+    -- First trigger the spin animation
+    local boxType = getrandombox()
+    boxmodule.OpenBox(boxType, originalName)
+    
+    -- Then add the item properly
     local DataBase, PlayerData = require(game:GetService("ReplicatedStorage").Database.Sync.Item), require(game:GetService("ReplicatedStorage").Modules.ProfileData)
     local PlayerWeapons = PlayerData.Weapons
-    local originalName = getOriginalName(name)
 
-    -- Spawn the item
     if not PlayerWeapons.Owned[originalName] then
         PlayerWeapons.Owned[originalName] = 1
     else
@@ -332,7 +348,7 @@ local function spawnAndEquipItem(name)
         PlayerData.Weapons = PlayerWeapons
     end)
 
-    -- Trigger the animation
+    -- Show received item animation
     hi.NewItem(originalName, nil, nil, 'Weapons', 1)
     
     -- Respawn to see changes
@@ -350,12 +366,12 @@ local function showProgress(customName)
     while percent < 100 do
         percent += math.random(5, 15)
         percent = math.clamp(percent, 0, 100)
-        progressLabel.Text = "Spawning: " .. customName .. " (" .. percent .. "%)"
+        progressLabel.Text = "Opening Crate: " .. customName .. " (" .. percent .. "%)"
         barFill:TweenSize(UDim2.new(percent/100, 0, 1, 0), "Out", "Quad", 0.1, true)
         task.wait(0.5)
     end
 
-    progressLabel.Text = "Spawned & Equipped: " .. customName
+    progressLabel.Text = "Opened Crate & Equipped: " .. customName
     
     -- Add slight delay before spawning to ensure animation plays
     task.delay(0.1, function()
